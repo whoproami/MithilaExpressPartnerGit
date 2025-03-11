@@ -114,12 +114,12 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
           <Image source={require('../assets/asset/notification.png')} style={styles.notificationIcon} />
         </TouchableOpacity>
       </View>
-      {/* <MapView style={styles.map} region={{ */}
+      {/* <MapView style={styles.map} region={{ 
         latitude: location.latitude,
         longitude: location.longitude,
         latitudeDelta: 0.0922,
         longitudeDelta: 0.0421,
-      }}>
+      }}>*/}
          <Marker
     coordinate={{
       latitude: location.latitude,
