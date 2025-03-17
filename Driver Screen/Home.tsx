@@ -290,8 +290,9 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
       setIsRefetching(false);
       setLocationError(null);
       
-      // Store driver location in database when online
+      // CRITICAL FIX: Explicitly store driver location in database when online
       if (isOnline) {
+        console.log("Explicitly storing lower accuracy location in database");
         storeDriverLocation(latitude, longitude);
       }
       
@@ -386,6 +387,12 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
   // Update the storeDriverLocation function
 const storeDriverLocation = async (latitude: number, longitude: number) => {
   try {
+    // Validate inputs before proceeding
+    if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+      console.error("Invalid location data:", { latitude, longitude });
+      return;
+    }
+
     const currentUser = await appwrite.getCurrentUser();
     if (currentUser) {
       console.log("Storing driver location:", { latitude, longitude });
@@ -395,6 +402,14 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
       const phoneNumber = currentUser.phone || "unknown";
 
       // Call the updated setuserLocation method with all required parameters
+      console.log("Calling setuserLocation with:", {
+        userId: currentUser.$id,
+        Phoneno: phoneNumber,
+        latitude,
+        longitude,
+        vehicleType: "car"
+      });
+      
       const result = await appwritedb.setuserLocation({
         userId: currentUser.$id,
         Phoneno: phoneNumber,
@@ -450,17 +465,30 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
       }
   
       const newOnlineStatus = !isOnline;
-      setIsOnline(newOnlineStatus);
-  
+      
       if (newOnlineStatus) {
         // Going online - refresh location first
         console.log("Driver going online, fetching location...");
   
+        // Set online state FIRST to make sure all location callbacks know we're online
+        setIsOnline(true);
+  
         if (useMockLocation) {
           console.log("Using mock location for online status");
-          storeDriverLocation(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
+          // Explicitly store in database
+          await storeDriverLocation(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
         } else {
-          fetchRealLocation(); // Call the updated fetchRealLocation function
+          // For real location, directly use the current location if available
+          if (location.latitude !== 0 && location.longitude !== 0) {
+            console.log("Using current location for online status:", location);
+            await storeDriverLocation(location.latitude, location.longitude);
+            
+            // Also try to get a more accurate fix in the background
+            fetchMoreAccurateLocation();
+          } else {
+            console.log("No current location, fetching new location...");
+            fetchRealLocation();
+          }
         }
   
         Snackbar.show({
@@ -475,6 +503,10 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
       } else {
         // Going offline - delete or update status in database
         console.log("Driver going offline, updating status...");
+        
+        // Set offline state immediately
+        setIsOnline(false);
+        
         try {
           const result = await appwritedb.setDriverOffline(currentUser.$id);
           console.log("Result from setDriverOffline:", result);
@@ -511,11 +543,32 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
 
   const fetchRealLocation = () => {
     console.log("Fetching real location for online status");
+    
+    // If using mock location, use it directly
+    if (useMockLocation) {
+      console.log("Using mock location for online status");
+      storeDriverLocation(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
+      return;
+    }
   
+    // If we already have a current location, use it immediately
+    if (location.latitude !== 0 && location.longitude !== 0) {
+      console.log("Using existing location immediately:", location);
+      storeDriverLocation(location.latitude, location.longitude);
+      
+      // Also try to get a more accurate location in the background
+      fetchMoreAccurateLocation();
+      return;
+    }
+    
+    // No existing location, need to fetch one
     const successCallback = (position: userposition) => {
       const { latitude, longitude } = position.coords;
       console.log("Got location successfully:", latitude, longitude);
-      storeDriverLocation(latitude, longitude); // Ensure this is called
+      // Update UI and state
+      setLocation({latitude, longitude});
+      // Always call storeDriverLocation when we get a location
+      storeDriverLocation(latitude, longitude);
     };
   
     const errorCallback = (error: any) => {
@@ -527,7 +580,11 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
           (position: userposition) => {
             const { latitude, longitude } = position.coords;
             console.log("Got location with lower accuracy:", latitude, longitude);
-            storeDriverLocation(latitude, longitude); // Ensure this is called
+            // Update UI and state
+            setLocation({latitude, longitude});
+            // CRITICAL FIX: Explicitly store this lower accuracy location
+            console.log("Explicitly storing lower accuracy location in database");
+            storeDriverLocation(latitude, longitude);
           },
           (fallbackError: any) => {
             console.error("Fallback location fetch failed:", fallbackError);
@@ -550,11 +607,37 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
       }
     };
   
+    // First attempt with high accuracy
     Geolocation.getCurrentPosition(successCallback, errorCallback, {
       enableHighAccuracy: true,
       timeout: 30000, // Increased timeout
       maximumAge: 1000,
     });
+  };
+  
+  // Helper function to get more accurate location in the background
+  const fetchMoreAccurateLocation = () => {
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log("Got more accurate location in background:", latitude, longitude);
+        // Update location state
+        setLocation({latitude, longitude});
+        // Update database with more accurate location
+        if (isOnline) {
+          storeDriverLocation(latitude, longitude);
+        }
+      },
+      (error) => {
+        // Just log error, don't show user-facing message since we already have a location
+        console.log("Background location update failed:", error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 1000
+      }
+    );
   };
 
   useEffect(() => {

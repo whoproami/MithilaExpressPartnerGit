@@ -1,5 +1,5 @@
 import { ID, Client, Databases, Query } from "appwrite";
-import { latLngToCell, gridDisk } from "h3-js"; // Add gridDisk import
+import { latLngToCell, gridDisk } from "h3-js"; 
 import Snackbar from "react-native-snackbar";
 
 const appwriteClient = new Client();
@@ -10,10 +10,9 @@ const APPWRITE_PROJECT_ID = "65f81754567f2cdc753d";
 const DATABASE_ID = "65fd621368673fa65790";
 const DRIVER_LOCATION_COLLECTION_ID = "67d820bd002a2017adcc";
 
-// Updated DriverLocationInfo type to match the collection schema
 type DriverLocationInfo = {
   userId: string; // Unique identifier for the driver
-  phoneno: string; // Driver's phone number
+  Phoneno: string; // Driver's phone number
   latitude: number; // Driver's latitude
   longitude: number; // Driver's longitude
   vehicleType: string; // Type of vehicle (e.g., car, bike, auto)
