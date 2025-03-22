@@ -20,9 +20,10 @@ import { DatabaseContext } from '../appwrite/DatabaseContext';
 import { AppwriteContext } from '../appwrite/AuthContext';
 import Snackbar from 'react-native-snackbar';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import RideRequestPopup from '../components/RideRequestPopup';
+import { Camera, useCameraDevices } from 'react-native-vision-camera';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AppStackParamList } from '../routes/AppStack';
-import { Camera, useCameraDevices } from 'react-native-vision-camera';
 
 type HomeScreenProps = NativeStackScreenProps<AppStackParamList, 'Home'>;
 
@@ -107,6 +108,8 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [useMockLocation, setUseMockLocation] = useState<boolean>(false);
   const [attemptCount, setAttemptCount] = useState<number>(0);
+  const [isRideRequestVisible, setIsRideRequestVisible] = useState<boolean>(false);
+  const [currentRideRequest, setCurrentRideRequest] = useState<any>(null);
   const [cameraModalVisible, setCameraModalVisible] = useState<boolean>(false);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState<boolean>(false);
@@ -212,6 +215,7 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
 
     const successCallback = (position: UserPosition) => {
       const { latitude, longitude } = position.coords;
+      console.log('Got location successfully:', latitude, longitude);
       setLocation({ latitude, longitude });
       setIsLoading(false);
       setIsRefetching(false);
@@ -270,11 +274,13 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
     };
 
     if (locPermission) {
+      console.log('Attempting to get location with high accuracy...');
       Geolocation.getCurrentPosition(successCallback, errorCallback, options);
     } else {
       const granted = await requestLocationPermission();
       setLocPermission(granted);
       if (granted) {
+        console.log('Permission granted, getting location...');
         Geolocation.getCurrentPosition(successCallback, errorCallback, options);
       } else {
         setLocationError('Location permission denied');
@@ -285,19 +291,30 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   const tryLessAccurateLocation = () => {
+    console.log('Trying with lower accuracy settings...');
     const successCallback = (position: UserPosition) => {
       const { latitude, longitude } = position.coords;
+      console.log('Got location with lower accuracy:', latitude, longitude);
       setLocation({ latitude, longitude });
       setIsLoading(false);
       setIsRefetching(false);
       setLocationError(null);
       if (isOnline) storeDriverLocation(latitude, longitude);
+      Snackbar.show({
+        text: 'Location updated (lower accuracy)!',
+        duration: Snackbar.LENGTH_SHORT,
+      });
     };
 
     const errorCallback = (error: any) => {
+      console.log('Low accuracy geolocation also failed:', error);
       setLocationError('Could not get location. Check device settings.');
       setIsRefetching(false);
       setIsLoading(false);
+      Snackbar.show({
+        text: 'Location detection failed. Try enabling "Demo Location" below.',
+        duration: Snackbar.LENGTH_LONG,
+      });
     };
 
     Geolocation.getCurrentPosition(successCallback, errorCallback, {
@@ -314,6 +331,10 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
       setIsLoading(false);
       setIsRefetching(false);
       setLocationError(null);
+      Snackbar.show({
+        text: 'Using demo location mode',
+        duration: Snackbar.LENGTH_SHORT,
+      });
     } else {
       fetchLocation();
     }
@@ -331,6 +352,7 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
         if (isOnline) storeDriverLocation(latitude, longitude);
       },
       error => {
+        console.log('Tracking error:', error);
         setLocationError(error.code === 3 ? 'Location tracking timed out.' : error.message);
       },
       { enableHighAccuracy: false, distanceFilter: 10, interval: 10000, fastestInterval: 5000 },
@@ -340,10 +362,16 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const storeDriverLocation = async (latitude: number, longitude: number) => {
     try {
+      if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+        console.error('Invalid location data:', { latitude, longitude });
+        return;
+      }
+
       const currentUser = await appwrite.getCurrentUser();
       if (!currentUser) throw new Error('User not logged in');
 
       const phoneNumber = currentUser.phone || 'unknown';
+      console.log('Storing driver location:', { latitude, longitude, userId: currentUser.$id });
       const result = await appwritedb.setuserLocation({
         userId: currentUser.$id,
         Phoneno: phoneNumber,
@@ -367,30 +395,39 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
   const toggleOnlineStatus = async () => {
     try {
       const currentUser = await appwrite.getCurrentUser();
-      if (!currentUser) throw new Error('User not logged in');
+      if (!currentUser) {
+        Snackbar.show({
+          text: 'You need to be logged in to change online status',
+          duration: Snackbar.LENGTH_SHORT,
+        });
+        return;
+      }
 
-      const newStatus = !isOnline;
-      setIsOnline(newStatus);
+      const newOnlineStatus = !isOnline;
+      setIsOnline(newOnlineStatus);
 
-      if (newStatus) {
+      if (newOnlineStatus) {
         if (useMockLocation) {
           await storeDriverLocation(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
-        } else if (location.latitude && location.longitude) {
+        } else if (location.latitude !== 0 && location.longitude !== 0) {
           await storeDriverLocation(location.latitude, location.longitude);
           fetchMoreAccurateLocation();
         } else {
           fetchLocation();
         }
         if (!isTracking) startLocationTracking();
+        Snackbar.show({
+          text: 'You are now online and available for rides',
+          duration: Snackbar.LENGTH_SHORT,
+        });
       } else {
         const result = await appwritedb.setDriverOffline(currentUser.$id);
         if (!result?.success) throw new Error('Failed to set offline');
+        Snackbar.show({
+          text: 'You are now offline',
+          duration: Snackbar.LENGTH_SHORT,
+        });
       }
-
-      Snackbar.show({
-        text: newStatus ? 'You are now online' : 'You are now offline',
-        duration: Snackbar.LENGTH_SHORT,
-      });
     } catch (error) {
       console.error('Error toggling online status:', error);
       Snackbar.show({
@@ -450,9 +487,6 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
           text: 'Selfie captured successfully!',
           duration: Snackbar.LENGTH_SHORT,
         });
-
-        // Optional: Upload to Appwrite
-        // const file = await appwrite.storage.createFile('selfies', 'unique()', uri);
       } catch (error) {
         console.error('Error capturing selfie:', error);
         Snackbar.show({
@@ -461,6 +495,47 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
         });
       }
     }
+  };
+
+  const handleAcceptRide = (rideId: string, rideData: any) => {
+    console.log('Ride accepted:', rideId, rideData);
+    setIsRideRequestVisible(false);
+    setCurrentRideRequest(null);
+    navigation.navigate('RideInProgress', { rideData });
+  };
+
+  const handleRejectRide = (rideId: string) => {
+    console.log('Ride rejected:', rideId);
+    setIsRideRequestVisible(false);
+    setCurrentRideRequest(null);
+    Snackbar.show({
+      text: 'Ride request rejected',
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  };
+
+  const handleRideRequestTimeout = () => {
+    console.log('Ride request timed out');
+    setIsRideRequestVisible(false);
+    setCurrentRideRequest(null);
+    Snackbar.show({
+      text: 'Ride request expired',
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  };
+
+  const testRideRequest = () => {
+    const sampleRideRequest = {
+      id: 'ride_' + Math.random().toString(36).substr(2, 9),
+      customerName: 'Amit Kumar',
+      pickupLocation: { address: 'MG Road, Bangalore', distance: '2.3 km', eta: '7 min' },
+      dropLocation: { address: 'Electronic City, Bangalore', distance: '18.5 km' },
+      fare: '₹320',
+      paymentMethod: 'Cash',
+      rideType: 'Regular',
+    };
+    setCurrentRideRequest(sampleRideRequest);
+    setIsRideRequestVisible(true);
   };
 
   useEffect(() => {
@@ -490,6 +565,13 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
       setCameraReady(true);
     }
   }, [devices]);
+
+  useEffect(() => {
+    if (isOnline) {
+      const timeoutId = setTimeout(() => testRideRequest(), 5000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOnline]);
 
   const handleWebViewMessage = (event: any) => {
     try {
@@ -549,19 +631,32 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.statusButton, isOnline ? styles.onlineStatus : styles.offlineStatus]}
+          style={[styles.statusIndicator, isOnline ? styles.onlineStatus : styles.offlineStatus]}
           onPress={toggleOnlineStatus}
         >
           <Text style={styles.statusText}>{isOnline ? "You're Online" : 'Go Online'}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.statusButton, useMockLocation ? styles.mockModeActive : styles.offlineStatus]}
+          style={[styles.statusIndicator, useMockLocation ? styles.mockModeActive : styles.offlineStatus]}
           onPress={toggleMockLocation}
         >
-          <Text style={styles.statusText}>{useMockLocation ? 'Demo Mode On' : 'Demo Mode Off'}</Text>
+          <Text style={styles.statusText}>{useMockLocation ? 'Using Demo Location' : 'Demo Location'}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.testButton} onPress={testRideRequest}>
+          <Text style={styles.testButtonText}>Test Ride Request</Text>
         </TouchableOpacity>
       </View>
+
+      <RideRequestPopup
+        visible={isRideRequestVisible}
+        rideData={currentRideRequest}
+        onAccept={handleAcceptRide}
+        onReject={handleRejectRide}
+        onTimeout={handleRideRequestTimeout}
+        timeoutDuration={30}
+      />
 
       <Footer />
 
@@ -580,22 +675,16 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
               <TouchableOpacity style={styles.captureButton} onPress={capturePhoto}>
                 <Ionicons name="camera" size={40} color="white" />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setCameraModalVisible(false)}
-              >
+              <TouchableOpacity style={styles.closeButton} onPress={() => setCameraModalVisible(false)}>
                 <Ionicons name="close" size={30} color="white" />
               </TouchableOpacity>
             </>
           ) : (
-            <Text style={styles.noCameraText}>
-              {cameraReady ? 'No camera available' : 'Detecting camera...'}
-            </Text>
+            <Text style={styles.noCameraText}>{cameraReady ? 'No camera available' : 'Detecting camera...'}</Text>
           )}
         </SafeAreaView>
       </Modal>
 
-      {/* Selfie Preview */}
       {selfieUri && (
         <View style={styles.selfiePreview}>
           <Image source={{ uri: selfieUri }} style={styles.selfieImage} />
@@ -680,7 +769,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: '#ddd',
   },
-  statusButton: {
+  statusIndicator: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 25,
@@ -734,6 +823,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     zIndex: 2000,
+  },
+  testButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    backgroundColor: '#E88801',
+    alignItems: 'center',
+  },
+  testButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
   },
   modalContainer: {
     flex: 1,
