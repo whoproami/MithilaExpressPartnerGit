@@ -11,6 +11,9 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MapSearch from "../components/MapSearch";
 import RegistrationScreen from "../Driver Screen/RegistrationScreen";
 import Notification from "../Driver Screen/Notification";
+import VehicleInformation from "../components/VehicleInformation";
+import DriverLicense from "../components/DriverLicense";
+import DriverProfile from "../components/DriverProfile";
 
 
 export type AppStackParamList = {
@@ -36,11 +39,10 @@ export const AppStack = () => {
             <Stack.Screen name="Home" component={Home} />
             <Stack.Screen name="Profile" component={Profile} />
             <Stack.Screen name="History" component={History} />
+            <Stack.Screen name ="DriverProfile" component={DriverProfile} />
             <Stack.Screen name="Notifications" component={Notification} />
-
-
-            
-
+            <Stack.Screen name="VehicleInfo" component={VehicleInformation} />
+            <Stack.Screen name="DrivingLicense" component={DriverLicense} />
         </Stack.Navigator>
     )
 }
