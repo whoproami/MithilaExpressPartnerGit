@@ -1,30 +1,31 @@
 import React, {useState, useEffect, useContext} from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  TextInput, 
-  TouchableOpacity, 
-  Text, 
-  Image, 
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  TouchableOpacity,
+  Text,
+  Image,
   PermissionsAndroid,
   ActivityIndicator,
   Linking,
-  Platform
+  Platform,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {WebView} from 'react-native-webview';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import Footer from '../components/Footer';
 import Geolocation from '@react-native-community/geolocation';
-import { DatabaseContext } from '../appwrite/DatabaseContext';
-import { AppwriteContext } from '../appwrite/AuthContext';
+import {DatabaseContext} from '../appwrite/DatabaseContext';
+import {AppwriteContext} from '../appwrite/AuthContext';
 import Snackbar from 'react-native-snackbar';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import RideRequestPopup from '../components/RideRequestPopup';
 
 //Navigation
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AppStackParamList } from '../routes/AppStack';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {AppStackParamList} from '../routes/AppStack';
 
-type HomeScreenProps = NativeStackScreenProps<AppStackParamList , 'Home'>;
+type HomeScreenProps = NativeStackScreenProps<AppStackParamList, 'Home'>;
 
 type Location = {
   latitude: number;
@@ -35,7 +36,7 @@ type userposition = {
   coords: {
     latitude: number;
     longitude: number;
-  }
+  };
 };
 
 // Enhanced permission request that also checks location services
@@ -51,7 +52,7 @@ const requestLocationPermission = async () => {
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'OK',
-        }
+        },
       );
       return granted === PermissionsAndroid.RESULTS.GRANTED;
     } else {
@@ -69,14 +70,17 @@ const requestLocationPermission = async () => {
 // Mock location for testing - remove in production
 const MOCK_LOCATION = {
   latitude: 26.7271, // Example: Janakpur, Nepal coordinates
-  longitude: 85.9274
+  longitude: 85.9274,
 };
 
-const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
+const Home: React.FC<HomeScreenProps> = ({navigation}: HomeScreenProps) => {
   const {appwritedb} = useContext(DatabaseContext);
   const {appwrite} = useContext(AppwriteContext);
-  
-  const [location, setLocation] = useState<Location>({ latitude: 0, longitude: 0 });
+
+  const [location, setLocation] = useState<Location>({
+    latitude: 0,
+    longitude: 0,
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isMapLoading, setIsMapLoading] = useState<boolean>(true);
   const [locPermission, setLocPermission] = useState<boolean>(false);
@@ -86,7 +90,9 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [useMockLocation, setUseMockLocation] = useState<boolean>(false);
   const [attemptCount, setAttemptCount] = useState<number>(0);
-  
+  const [isRideRequestVisible, setIsRideRequestVisible] = useState(false);
+  const [currentRideRequest, setCurrentRideRequest] = useState(null);
+
   const mapHTML = `
     <!DOCTYPE html>
     <html>
@@ -172,7 +178,7 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
     setIsRefetching(true);
     setLocationError(null);
     setAttemptCount(prev => prev + 1);
-    
+
     // If we've tried multiple times and failed, suggest mock location
     if (attemptCount >= 3 && !useMockLocation) {
       Snackbar.show({
@@ -191,20 +197,20 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
         },
       });
     }
-    
+
     const successCallback = (position: userposition) => {
       const {latitude, longitude} = position.coords;
-      console.log("Got location successfully:", latitude, longitude);
+      console.log('Got location successfully:', latitude, longitude);
       setLocation({latitude, longitude});
       setIsLoading(false);
       setIsRefetching(false);
       setLocationError(null);
-      
+
       // Store driver location in database when online
       if (isOnline) {
         storeDriverLocation(latitude, longitude);
       }
-      
+
       Snackbar.show({
         text: 'Location updated successfully!',
         duration: Snackbar.LENGTH_SHORT,
@@ -214,17 +220,22 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
     const errorCallback = (error: any) => {
       console.log('Geolocation error:', error);
       let errorMessage = '';
-      
-      if (error.code === 3) { // TIMEOUT
-        errorMessage = 'Location request timed out. Try adjusting your settings.';
-      } else if (error.code === 2) { // POSITION_UNAVAILABLE
+
+      if (error.code === 3) {
+        // TIMEOUT
+        errorMessage =
+          'Location request timed out. Try adjusting your settings.';
+      } else if (error.code === 2) {
+        // POSITION_UNAVAILABLE
         errorMessage = 'Location services are disabled. Please enable them.';
-      } else if (error.code === 1) { // PERMISSION_DENIED
-        errorMessage = 'Location permission denied. Please enable location in settings.';
+      } else if (error.code === 1) {
+        // PERMISSION_DENIED
+        errorMessage =
+          'Location permission denied. Please enable location in settings.';
       } else {
         errorMessage = 'Failed to get location: ' + error.message;
       }
-      
+
       // If we get a timeout, try with less accurate but faster settings
       if (error.code === 3 && !useMockLocation) {
         tryLessAccurateLocation();
@@ -239,7 +250,7 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
             onPress: openLocationSettings,
           },
         });
-        
+
         setIsLoading(false);
         setIsRefetching(false);
       }
@@ -256,19 +267,19 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
 
     // Standard high accuracy position request
     const options = {
-      enableHighAccuracy: true, 
+      enableHighAccuracy: true,
       timeout: 15000, // Reduced from 20000
       maximumAge: 1000,
     };
 
     if (locPermission) {
-      console.log("Attempting to get location with high accuracy...");
+      console.log('Attempting to get location with high accuracy...');
       Geolocation.getCurrentPosition(successCallback, errorCallback, options);
     } else {
       const granted = await requestLocationPermission();
       setLocPermission(granted);
       if (granted) {
-        console.log("Permission granted, getting location...");
+        console.log('Permission granted, getting location...');
         Geolocation.getCurrentPosition(successCallback, errorCallback, options);
       } else {
         setLocationError('Location permission denied');
@@ -277,37 +288,39 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
       }
     }
   };
-  
+
   // Try to get location with lower accuracy settings
   const tryLessAccurateLocation = () => {
-    console.log("Trying with lower accuracy settings...");
-    
+    console.log('Trying with lower accuracy settings...');
+
     const successCallback = (position: userposition) => {
       const {latitude, longitude} = position.coords;
-      console.log("Got location with lower accuracy:", latitude, longitude);
+      console.log('Got location with lower accuracy:', latitude, longitude);
       setLocation({latitude, longitude});
       setIsLoading(false);
       setIsRefetching(false);
       setLocationError(null);
-      
+
       // CRITICAL FIX: Explicitly store driver location in database when online
       if (isOnline) {
-        console.log("Explicitly storing lower accuracy location in database");
+        console.log('Explicitly storing lower accuracy location in database');
         storeDriverLocation(latitude, longitude);
       }
-      
+
       Snackbar.show({
         text: 'Location updated (lower accuracy)!',
         duration: Snackbar.LENGTH_SHORT,
       });
     };
-    
+
     const errorCallback = (error: any) => {
       console.log('Low accuracy geolocation also failed:', error);
-      setLocationError('Could not get your location. Please check your device settings.');
+      setLocationError(
+        'Could not get your location. Please check your device settings.',
+      );
       setIsRefetching(false);
       setIsLoading(false);
-      
+
       Snackbar.show({
         text: 'Location detection failed. Try enabling "Demo Location" below.',
         duration: Snackbar.LENGTH_LONG,
@@ -320,10 +333,10 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
       timeout: 10000, // Even shorter timeout
       maximumAge: 60000, // Accept up to 1 minute old locations
     };
-    
+
     Geolocation.getCurrentPosition(successCallback, errorCallback, options);
   };
-  
+
   // Toggle between mock location and real location
   const toggleMockLocation = () => {
     if (useMockLocation) {
@@ -338,119 +351,121 @@ const Home: React.FC<HomeScreenProps> = ({navigation}:HomeScreenProps) => {
       setIsLoading(false);
       setIsRefetching(false);
       setLocationError(null);
-      
+
       Snackbar.show({
         text: 'Using demo location mode',
         duration: Snackbar.LENGTH_SHORT,
       });
     }
   };
-  
+
   const startLocationTracking = () => {
     // If using mock location, don't start real tracking
     if (useMockLocation) return null;
-    
+
     if (!isTracking && locPermission) {
       setIsTracking(true);
       // Set up a location watcher
       const watchId = Geolocation.watchPosition(
-        (position) => {
+        position => {
           const {latitude, longitude} = position.coords;
           setLocation({latitude, longitude});
           setLocationError(null);
-          
+
           // Store location in database when online
           if (isOnline) {
             storeDriverLocation(latitude, longitude);
           }
         },
-        (error) => {
+        error => {
           console.log('Tracking error:', error);
           if (error.code === 3) {
-            setLocationError('Location tracking timed out. Trying to recover...');
+            setLocationError(
+              'Location tracking timed out. Trying to recover...',
+            );
           }
         },
         {
           enableHighAccuracy: false, // Use lower accuracy for tracking to save battery
           distanceFilter: 10, // Update when moved at least 10 meters
           interval: 10000, // Update every 10 seconds (increased to reduce timeouts)
-          fastestInterval: 5000 // Increased to reduce timeouts
-        }
+          fastestInterval: 5000, // Increased to reduce timeouts
+        },
       );
-      
+
       // Store watchId to clear it later
       return watchId;
     }
     return null;
   };
-  
+
   // Update the storeDriverLocation function
-const storeDriverLocation = async (latitude: number, longitude: number) => {
-  try {
-    // Validate inputs before proceeding
-    if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
-      console.error("Invalid location data:", { latitude, longitude });
-      return;
-    }
-
-    const currentUser = await appwrite.getCurrentUser();
-    if (currentUser) {
-      console.log("Storing driver location:", { latitude, longitude });
-      console.log("Current user:", currentUser.$id, currentUser.phone);
-
-      // Make sure we have a phone number
-      const phoneNumber = currentUser.phone || "unknown";
-
-      // Call the updated setuserLocation method with all required parameters
-      console.log("Calling setuserLocation with:", {
-        userId: currentUser.$id,
-        Phoneno: phoneNumber,
-        latitude,
-        longitude,
-        vehicleType: "car"
-      });
-      
-      const result = await appwritedb.setuserLocation({
-        userId: currentUser.$id,
-        Phoneno: phoneNumber,
-        latitude,
-        longitude,
-        vehicleType: "car", // Example: Set vehicle type dynamically
-      });
-
-      console.log("Result from setuserLocation:", result);
-
-      if (result?.success) {
-        console.log("Driver location stored successfully with H3 indexing");
-      } else {
-        console.error("Failed to store driver location:", result?.error);
-
-        // Only show error if we're online
-        if (isOnline) {
-          Snackbar.show({
-            text: "Failed to update your status in the database",
-            duration: Snackbar.LENGTH_SHORT,
-          });
-        }
+  const storeDriverLocation = async (latitude: number, longitude: number) => {
+    try {
+      // Validate inputs before proceeding
+      if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+        console.error('Invalid location data:', {latitude, longitude});
+        return;
       }
-    } else {
-      console.error("Cannot store location: User not logged in");
-      setIsOnline(false); // Turn offline if user isn't logged in
+
+      const currentUser = await appwrite.getCurrentUser();
+      if (currentUser) {
+        console.log('Storing driver location:', {latitude, longitude});
+        console.log('Current user:', currentUser.$id, currentUser.phone);
+
+        // Make sure we have a phone number
+        const phoneNumber = currentUser.phone || 'unknown';
+
+        // Call the updated setuserLocation method with all required parameters
+        console.log('Calling setuserLocation with:', {
+          userId: currentUser.$id,
+          Phoneno: phoneNumber,
+          latitude,
+          longitude,
+          vehicleType: 'car',
+        });
+
+        const result = await appwritedb.setuserLocation({
+          userId: currentUser.$id,
+          Phoneno: phoneNumber,
+          latitude,
+          longitude,
+          vehicleType: 'car', // Example: Set vehicle type dynamically
+        });
+
+        console.log('Result from setuserLocation:', result);
+
+        if (result?.success) {
+          console.log('Driver location stored successfully with H3 indexing');
+        } else {
+          console.error('Failed to store driver location:', result?.error);
+
+          // Only show error if we're online
+          if (isOnline) {
+            Snackbar.show({
+              text: 'Failed to update your status in the database',
+              duration: Snackbar.LENGTH_SHORT,
+            });
+          }
+        }
+      } else {
+        console.error('Cannot store location: User not logged in');
+        setIsOnline(false); // Turn offline if user isn't logged in
+
+        Snackbar.show({
+          text: 'You need to be logged in to go online',
+          duration: Snackbar.LENGTH_SHORT,
+        });
+      }
+    } catch (error) {
+      console.error('Error storing driver location:', error);
 
       Snackbar.show({
-        text: "You need to be logged in to go online",
+        text: 'Failed to update your location',
         duration: Snackbar.LENGTH_SHORT,
       });
     }
-  } catch (error) {
-    console.error("Error storing driver location:", error);
-
-    Snackbar.show({
-      text: "Failed to update your location",
-      duration: Snackbar.LENGTH_SHORT,
-    });
-  }
-};
+  };
 
   // Update the toggleOnlineStatus function
   const toggleOnlineStatus = async () => {
@@ -463,68 +478,71 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
         });
         return;
       }
-  
+
       const newOnlineStatus = !isOnline;
-      
+
       if (newOnlineStatus) {
         // Going online - refresh location first
-        console.log("Driver going online, fetching location...");
-  
+        console.log('Driver going online, fetching location...');
+
         // Set online state FIRST to make sure all location callbacks know we're online
         setIsOnline(true);
-  
+
         if (useMockLocation) {
-          console.log("Using mock location for online status");
+          console.log('Using mock location for online status');
           // Explicitly store in database
-          await storeDriverLocation(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
+          await storeDriverLocation(
+            MOCK_LOCATION.latitude,
+            MOCK_LOCATION.longitude,
+          );
         } else {
           // For real location, directly use the current location if available
           if (location.latitude !== 0 && location.longitude !== 0) {
-            console.log("Using current location for online status:", location);
+            console.log('Using current location for online status:', location);
             await storeDriverLocation(location.latitude, location.longitude);
-            
+
             // Also try to get a more accurate fix in the background
             fetchMoreAccurateLocation();
           } else {
-            console.log("No current location, fetching new location...");
+            console.log('No current location, fetching new location...');
             fetchRealLocation();
           }
         }
-  
+
         Snackbar.show({
           text: 'You are now online and available for rides',
           duration: Snackbar.LENGTH_SHORT,
         });
-  
+
         if (!isTracking && !useMockLocation) {
-          console.log("Starting location tracking");
+          console.log('Starting location tracking');
           startLocationTracking();
         }
       } else {
         // Going offline - delete or update status in database
-        console.log("Driver going offline, updating status...");
-        
+        console.log('Driver going offline, updating status...');
+
         // Set offline state immediately
         setIsOnline(false);
-        
+
         try {
           const result = await appwritedb.setDriverOffline(currentUser.$id);
-          console.log("Result from setDriverOffline:", result);
-  
+          console.log('Result from setDriverOffline:', result);
+
           if (result?.success) {
             Snackbar.show({
               text: 'You are now offline',
               duration: Snackbar.LENGTH_SHORT,
             });
           } else {
-            console.error("Error setting driver offline:", result?.error);
+            console.error('Error setting driver offline:', result?.error);
             Snackbar.show({
               text: 'Failed to update your status, but you are offline in the app',
               duration: Snackbar.LENGTH_SHORT,
             });
           }
         } catch (error) {
-          console.error("Error setting driver offline:", error);
+          console.error('Error setting driver offline:', error);
           Snackbar.show({
             text: 'Failed to update your status, but you are offline in the app',
             duration: Snackbar.LENGTH_SHORT,
@@ -532,8 +550,8 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
         }
       }
     } catch (error) {
-      console.error("Error toggling online status:", error);
-  
+      console.error('Error toggling online status:', error);
+
       Snackbar.show({
         text: 'Failed to update your status',
         duration: Snackbar.LENGTH_SHORT,
@@ -542,54 +560,61 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
   };
 
   const fetchRealLocation = () => {
-    console.log("Fetching real location for online status");
-    
+    console.log('Fetching real location for online status');
+
     // If using mock location, use it directly
     if (useMockLocation) {
-      console.log("Using mock location for online status");
+      console.log('Using mock location for online status');
       storeDriverLocation(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
       return;
     }
-  
+
     // If we already have a current location, use it immediately
     if (location.latitude !== 0 && location.longitude !== 0) {
-      console.log("Using existing location immediately:", location);
+      console.log('Using existing location immediately:', location);
       storeDriverLocation(location.latitude, location.longitude);
-      
+
       // Also try to get a more accurate location in the background
       fetchMoreAccurateLocation();
       return;
     }
-    
+
     // No existing location, need to fetch one
     const successCallback = (position: userposition) => {
-      const { latitude, longitude } = position.coords;
-      console.log("Got location successfully:", latitude, longitude);
+      const {latitude, longitude} = position.coords;
+      console.log('Got location successfully:', latitude, longitude);
       // Update UI and state
       setLocation({latitude, longitude});
       // Always call storeDriverLocation when we get a location
       storeDriverLocation(latitude, longitude);
     };
-  
+
     const errorCallback = (error: any) => {
-      console.error("Error fetching location:", error);
-  
-      if (error.code === 3) { // TIMEOUT
-        console.log("Retrying with lower accuracy...");
+      console.error('Error fetching location:', error);
+
+      if (error.code === 3) {
+        // TIMEOUT
+        console.log('Retrying with lower accuracy...');
         Geolocation.getCurrentPosition(
           (position: userposition) => {
-            const { latitude, longitude } = position.coords;
-            console.log("Got location with lower accuracy:", latitude, longitude);
+            const {latitude, longitude} = position.coords;
+            console.log(
+              'Got location with lower accuracy:',
+              latitude,
+              longitude,
+            );
             // Update UI and state
             setLocation({latitude, longitude});
             // CRITICAL FIX: Explicitly store this lower accuracy location
-            console.log("Explicitly storing lower accuracy location in database");
+            console.log(
+              'Explicitly storing lower accuracy location in database',
+            );
             storeDriverLocation(latitude, longitude);
           },
           (fallbackError: any) => {
-            console.error("Fallback location fetch failed:", fallbackError);
+            console.error('Fallback location fetch failed:', fallbackError);
             Snackbar.show({
-              text: "Failed to fetch location. Please check your device settings.",
+              text: 'Failed to fetch location. Please check your device settings.',
               duration: Snackbar.LENGTH_LONG,
             });
           },
@@ -597,16 +622,16 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
             enableHighAccuracy: false, // Lower accuracy
             timeout: 20000, // Shorter timeout
             maximumAge: 60000, // Accept up to 1-minute-old locations
-          }
+          },
         );
       } else {
         Snackbar.show({
-          text: "Failed to fetch location. Please try again.",
+          text: 'Failed to fetch location. Please try again.',
           duration: Snackbar.LENGTH_SHORT,
         });
       }
     };
-  
+
     // First attempt with high accuracy
     Geolocation.getCurrentPosition(successCallback, errorCallback, {
       enableHighAccuracy: true,
@@ -614,13 +639,17 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
       maximumAge: 1000,
     });
   };
-  
+
   // Helper function to get more accurate location in the background
   const fetchMoreAccurateLocation = () => {
     Geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        console.log("Got more accurate location in background:", latitude, longitude);
+      position => {
+        const {latitude, longitude} = position.coords;
+        console.log(
+          'Got more accurate location in background:',
+          latitude,
+          longitude,
+        );
         // Update location state
         setLocation({latitude, longitude});
         // Update database with more accurate location
@@ -628,16 +657,73 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
           storeDriverLocation(latitude, longitude);
         }
       },
-      (error) => {
+      error => {
         // Just log error, don't show user-facing message since we already have a location
-        console.log("Background location update failed:", error);
+        console.log('Background location update failed:', error);
       },
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 1000
-      }
+        maximumAge: 1000,
+      },
     );
+  };
+
+  const handleAcceptRide = (rideId: string, rideData: any) => {
+    console.log('Ride accepted:', rideId, rideData);
+
+    // Close the popup
+    setIsRideRequestVisible(false);
+    setCurrentRideRequest(null);
+
+    // Navigate to RideInProgress with ride data
+    navigation.navigate('RideInProgress', {rideData});
+  };
+
+  const handleRejectRide = (rideId: string) => {
+    console.log('Ride rejected:', rideId);
+    setIsRideRequestVisible(false);
+    setCurrentRideRequest(null);
+
+    Snackbar.show({
+      text: 'Ride request rejected',
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  };
+
+  const handleRideRequestTimeout = () => {
+    console.log('Ride request timed out');
+    setIsRideRequestVisible(false);
+    setCurrentRideRequest(null);
+
+    Snackbar.show({
+      text: 'Ride request expired',
+      duration: Snackbar.LENGTH_SHORT,
+    });
+  };
+
+  // Add this function to test the ride request popup
+  const testRideRequest = () => {
+    // Sample ride request data
+    const sampleRideRequest = {
+      id: 'ride_' + Math.random().toString(36).substr(2, 9),
+      customerName: 'Amit Kumar',
+      pickupLocation: {
+        address: 'MG Road, Bangalore',
+        distance: '2.3 km',
+        eta: '7 min',
+      },
+      dropLocation: {
+        address: 'Electronic City, Bangalore',
+        distance: '18.5 km',
+      },
+      fare: '₹320',
+      paymentMethod: 'Cash',
+      rideType: 'Regular',
+    };
+
+    setCurrentRideRequest(sampleRideRequest);
+    setIsRideRequestVisible(true);
   };
 
   useEffect(() => {
@@ -667,15 +753,15 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
       fetchLocation();
     }
   }, [locPermission]);
-  
+
   // Set up location tracking when going online
   useEffect(() => {
     let watchId: number | null = null;
-    
+
     if (isOnline && !isTracking && !useMockLocation) {
       watchId = startLocationTracking();
     }
-    
+
     return () => {
       if (watchId !== null) {
         Geolocation.clearWatch(watchId);
@@ -684,11 +770,22 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
     };
   }, [isOnline, useMockLocation]);
 
+  useEffect(() => {
+    if (isOnline) {
+      // Simulate receiving a ride request after going online
+      const timeoutId = setTimeout(() => {
+        testRideRequest();
+      }, 5000); // Show after 5 seconds
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOnline]);
+
   const handleWebViewMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       console.log('WebView message:', data);
-      
+
       if (data.event === 'mapReady') {
         console.log('Map is ready with coordinates:', data.lat, data.lng);
       }
@@ -701,11 +798,16 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TextInput style={styles.searchBar} placeholder="Search here" />
-        <TouchableOpacity style={styles.notificationButton} onPress={() => navigation.navigate("Notifications")}>
-          <Image source={require('../assets/asset/notification.png')} style={styles.notificationIcon} />
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={() => navigation.navigate('Notifications')}>
+          <Image
+            source={require('../assets/asset/notification.png')}
+            style={styles.notificationIcon}
+          />
         </TouchableOpacity>
       </View>
-      
+
       {/* Map Section */}
       <View style={styles.mapContainer}>
         {(isMapLoading || isRefetching) && (
@@ -716,21 +818,21 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
             </Text>
           </View>
         )}
-        
+
         {/* Refresh Location Button - Displayed when there's a location error */}
-        {(locationError || (location.latitude === 0 && location.longitude === 0)) && (
-          <TouchableOpacity 
+        {(locationError ||
+          (location.latitude === 0 && location.longitude === 0)) && (
+          <TouchableOpacity
             style={styles.refreshButton}
             onPress={fetchLocation}
-            disabled={isRefetching}
-          >
+            disabled={isRefetching}>
             <Ionicons name="refresh" size={24} color="white" />
             <Text style={styles.refreshButtonText}>
               {isRefetching ? 'Getting Location...' : 'Refresh Location'}
             </Text>
           </TouchableOpacity>
         )}
-        
+
         <WebView
           key={`${location.latitude}_${location.longitude}`} // Force reload when location changes
           originWhitelist={['*']}
@@ -741,7 +843,7 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
             console.log('WebView loaded successfully');
             setIsMapLoading(false);
           }}
-          onError={(error) => {
+          onError={error => {
             console.log('WebView error:', error);
             setIsMapLoading(false);
             Snackbar.show({
@@ -750,7 +852,7 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
             });
           }}
         />
-        
+
         {/* Error Message */}
         {locationError && (
           <View style={styles.errorContainer}>
@@ -758,40 +860,54 @@ const storeDriverLocation = async (latitude: number, longitude: number) => {
           </View>
         )}
       </View>
-      
+
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.statusIndicator, isOnline ? styles.onlineStatus : styles.offlineStatus]}
-          onPress={toggleOnlineStatus}
-        >
+        <TouchableOpacity
+          style={[
+            styles.statusIndicator,
+            isOnline ? styles.onlineStatus : styles.offlineStatus,
+          ]}
+          onPress={toggleOnlineStatus}>
           <Text style={styles.statusText}>
-            {isOnline ? "You're Online" : "Go Online"}
+            {isOnline ? "You're Online" : 'Go Online'}
           </Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.statusIndicator, useMockLocation ? styles.mockModeActive : styles.statusIndicator]} 
-          onPress={toggleMockLocation}
-        >
+
+        <TouchableOpacity
+          style={[
+            styles.statusIndicator,
+            useMockLocation ? styles.mockModeActive : styles.statusIndicator,
+          ]}
+          onPress={toggleMockLocation}>
           <Text style={styles.statusText}>
-            {useMockLocation ? "Using Demo Location" : "Demo Location"}
+            {useMockLocation ? 'Using Demo Location' : 'Demo Location'}
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.testButton} onPress={testRideRequest}>
+          <Text style={styles.testButtonText}>Test Ride Request</Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Fixed position refresh location button */}
-      <TouchableOpacity 
+      {/* <TouchableOpacity
         style={styles.floatingRefreshButton}
         onPress={fetchLocation}
-        disabled={isRefetching}
-      >
-        <Ionicons 
-          name="locate" 
-          size={24} 
-          color="white" 
-        />
-      </TouchableOpacity>
-      
+        disabled={isRefetching}>
+        <Ionicons name="locate" size={24} color="white" />
+      </TouchableOpacity> */}
+
+      <RideRequestPopup
+        visible={isRideRequestVisible}
+        rideData={currentRideRequest}
+        onAccept={handleAcceptRide}
+        onReject={handleRejectRide}
+        onTimeout={handleRideRequestTimeout}
+        timeoutDuration={30} // 30 seconds to respond
+      />
+
+      {/* For testing only */}
+
       <Footer />
     </SafeAreaView>
   );
@@ -858,7 +974,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    transform: [{ translateX: -80 }, { translateY: -20 }],
+    transform: [{translateX: -80}, {translateY: -20}],
     backgroundColor: '#E88801',
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -892,7 +1008,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: '#ddd',
     flexDirection: 'row',
-    justifyContent: "center",
+    justifyContent: 'center',
   },
   statusIndicator: {
     padding: 12,
@@ -927,10 +1043,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.3,
     shadowRadius: 3,
     zIndex: 2000,
+  },
+  testButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#E88801',
+    padding: 10,
+    borderRadius: 5,
+  },
+  testButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 

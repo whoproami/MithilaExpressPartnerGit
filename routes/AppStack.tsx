@@ -11,6 +11,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MapSearch from "../components/MapSearch";
 import RegistrationScreen from "../Driver Screen/RegistrationScreen";
 import Notification from "../Driver Screen/Notification";
+import RideInProgress from "../Driver Screen/RideInProgress";
+import RideComplete from "../Driver Screen/RideComplete";
 
 
 export type AppStackParamList = {
@@ -23,6 +25,8 @@ export type AppStackParamList = {
     Profile: undefined,
     History: undefined,
     Notifications:undefined,
+    RideInProgress:undefined,
+    RideComplete:undefined,
     
 }
 
@@ -37,6 +41,8 @@ export const AppStack = () => {
             <Stack.Screen name="Profile" component={Profile} />
             <Stack.Screen name="History" component={History} />
             <Stack.Screen name="Notifications" component={Notification} />
+            <Stack.Screen name="RideInProgress" component={RideInProgress} />
+            <Stack.Screen name="RideComplete" component={RideComplete} />
 
 
             
