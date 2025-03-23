@@ -1,16 +1,16 @@
 import { StyleSheet, Text, View } from "react-native";
 import React from "react";
-
 import Home from "../Driver Screen/Home";
 import Welcome  from "../Driver Screen/Welcome";
 import Profile from "../Driver Screen/Profile";
 import History  from "../Driver Screen/History";
-
-
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MapSearch from "../components/MapSearch";
 import RegistrationScreen from "../Driver Screen/RegistrationScreen";
 import Notification from "../Driver Screen/Notification";
+import VehicleInformation from "../components/VehicleInformation";
+import DriverLicense from "../components/DriverLicense";
+import DriverProfile from "../components/DriverProfile";
 import RideInProgress from "../Driver Screen/RideInProgress";
 import RideComplete from "../Driver Screen/RideComplete";
 
@@ -40,7 +40,10 @@ export const AppStack = () => {
             <Stack.Screen name="Home" component={Home} />
             <Stack.Screen name="Profile" component={Profile} />
             <Stack.Screen name="History" component={History} />
+            <Stack.Screen name ="DriverProfile" component={DriverProfile} />
             <Stack.Screen name="Notifications" component={Notification} />
+            <Stack.Screen name="VehicleInfo" component={VehicleInformation} />
+            <Stack.Screen name="DrivingLicense" component={DriverLicense} />
             <Stack.Screen name="RideInProgress" component={RideInProgress} />
             <Stack.Screen name="RideComplete" component={RideComplete} />
 
