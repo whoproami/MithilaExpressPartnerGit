@@ -12,24 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Sound from 'react-native-sound';
-
-// Enable playback in silence mode (iOS only)
-Sound.setCategory('Playback');
-
-// Load sound file
-let notificationSound: Sound | null = null;
-const loadSound = () => {
-  notificationSound = new Sound(
-    'notification.mp3', // Make sure to add this file to your android/app/src/main/res/raw and ios/Resources folders
-    Sound.MAIN_BUNDLE,
-    error => {
-      if (error) {
-        console.log('Failed to load sound', error);
-      }
-    },
-  );
-};
+import SoundPlayer from 'react-native-sound-player';
 
 type RideRequestPopupProps = {
   visible: boolean;
@@ -69,6 +52,15 @@ const RideRequestPopup: React.FC<RideRequestPopupProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const progressAnim = useState(new Animated.Value(1))[0];
 
+  // Function to play the notification sound
+  const playSound = () => {
+    try {
+      SoundPlayer.playSoundFile('notification', 'mp3'); // Ensure notification.mp3 is in the correct location
+    } catch (error) {
+      console.error('Error playing sound:', error);
+    }
+  };
+
   // Start animation and timer when modal becomes visible
   useEffect(() => {
     if (visible && rideData) {
@@ -77,15 +69,12 @@ const RideRequestPopup: React.FC<RideRequestPopupProps> = ({
       progressAnim.setValue(1);
       setIsLoading(false);
 
-      // // Play sound and vibrate
-      // if (Platform.OS === 'android') {
-      //   Vibration.vibrate([0, 500, 200, 500]);
-      // } else {
-      //   Vibration.vibrate([0, 1000]);
-      // }
-
-      if (notificationSound) {
-        notificationSound.play();
+      // Play sound and vibrate
+      playSound();
+      if (Platform.OS === 'android') {
+        //Vibration.vibrate([0, 500, 200, 500]);
+      } else {
+        //Vibration.vibrate([0, 1000]);
       }
 
       // Start countdown animation
@@ -109,24 +98,10 @@ const RideRequestPopup: React.FC<RideRequestPopupProps> = ({
 
       return () => {
         clearInterval(intervalId);
-        if (notificationSound) {
-          notificationSound.stop();
-        }
+        SoundPlayer.stop(); // Stop the sound when the popup is closed
       };
     }
   }, [visible, rideData, timeoutDuration, progressAnim, onTimeout]);
-
-  // Load sound on component mount
-  useEffect(() => {
-    loadSound();
-
-    return () => {
-      if (notificationSound) {
-        notificationSound.release();
-        notificationSound = null;
-      }
-    };
-  }, []);
 
   if (!visible || !rideData) return null;
 
@@ -170,7 +145,7 @@ const RideRequestPopup: React.FC<RideRequestPopupProps> = ({
   };
 
   const handleReject = () => {
-    onReject(rideData.id);
+    onReject(rideData!.id);
   };
 
   const progressWidth = progressAnim.interpolate({
