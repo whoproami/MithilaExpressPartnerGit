@@ -89,11 +89,6 @@ const requestCameraPermission = async (): Promise<boolean> => {
   }
 };
 
-const MOCK_LOCATION: Location = {
-  latitude: 26.7271,
-  longitude: 85.9274,
-};
-
 const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { appwritedb } = useContext(DatabaseContext);
   const { appwrite } = useContext(AppwriteContext);
@@ -106,8 +101,6 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [isTracking, setIsTracking] = useState<boolean>(false);
   const [isRefetching, setIsRefetching] = useState<boolean>(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [useMockLocation, setUseMockLocation] = useState<boolean>(false);
-  const [attemptCount, setAttemptCount] = useState<number>(0);
   const [isRideRequestVisible, setIsRideRequestVisible] = useState<boolean>(false);
   const [currentRideRequest, setCurrentRideRequest] = useState<any>(null);
   const [cameraModalVisible, setCameraModalVisible] = useState<boolean>(false);
@@ -194,24 +187,6 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
   const fetchLocation = async () => {
     setIsRefetching(true);
     setLocationError(null);
-    setAttemptCount(prev => prev + 1);
-
-    if (attemptCount >= 3 && !useMockLocation) {
-      Snackbar.show({
-        text: 'Having trouble getting your location. Use demo location?',
-        duration: Snackbar.LENGTH_LONG,
-        action: {
-          text: 'USE DEMO',
-          textColor: 'green',
-          onPress: () => {
-            setUseMockLocation(true);
-            setLocation(MOCK_LOCATION);
-            setIsLoading(false);
-            setIsRefetching(false);
-          },
-        },
-      });
-    }
 
     const successCallback = (position: UserPosition) => {
       const { latitude, longitude } = position.coords;
@@ -258,14 +233,6 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
         action: { text: 'SETTINGS', textColor: 'white', onPress: openLocationSettings },
       });
     };
-
-    if (useMockLocation) {
-      setLocation(MOCK_LOCATION);
-      setIsLoading(false);
-      setIsRefetching(false);
-      setLocationError(null);
-      return;
-    }
 
     const options = {
       enableHighAccuracy: true,
@@ -324,24 +291,8 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
     });
   };
 
-  const toggleMockLocation = () => {
-    setUseMockLocation(prev => !prev);
-    if (!useMockLocation) {
-      setLocation(MOCK_LOCATION);
-      setIsLoading(false);
-      setIsRefetching(false);
-      setLocationError(null);
-      Snackbar.show({
-        text: 'Using demo location mode',
-        duration: Snackbar.LENGTH_SHORT,
-      });
-    } else {
-      fetchLocation();
-    }
-  };
-
   const startLocationTracking = () => {
-    if (useMockLocation || !locPermission || isTracking) return null;
+    if (!locPermission || isTracking) return null;
 
     setIsTracking(true);
     const watchId = Geolocation.watchPosition(
@@ -407,9 +358,7 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
       setIsOnline(newOnlineStatus);
 
       if (newOnlineStatus) {
-        if (useMockLocation) {
-          await storeDriverLocation(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
-        } else if (location.latitude !== 0 && location.longitude !== 0) {
+        if (location.latitude !== 0 && location.longitude !== 0) {
           await storeDriverLocation(location.latitude, location.longitude);
           fetchMoreAccurateLocation();
         } else {
@@ -550,14 +499,14 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   useEffect(() => {
     let watchId: number | null = null;
-    if (isOnline && !isTracking && !useMockLocation) {
+    if (isOnline && !isTracking ) {
       watchId = startLocationTracking();
     }
     return () => {
       if (watchId !== null) Geolocation.clearWatch(watchId);
       setIsTracking(false);
     };
-  }, [isOnline, useMockLocation]);
+  }, [isOnline]);
 
   useEffect(() => {
     if (devices && Object.keys(devices).length > 0) {
@@ -635,17 +584,6 @@ const Home: React.FC<HomeScreenProps> = ({ navigation }) => {
           onPress={toggleOnlineStatus}
         >
           <Text style={styles.statusText}>{isOnline ? "You're Online" : 'Go Online'}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.statusIndicator, useMockLocation ? styles.mockModeActive : styles.offlineStatus]}
-          onPress={toggleMockLocation}
-        >
-          <Text style={styles.statusText}>{useMockLocation ? 'Using Demo Location' : 'Demo Location'}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.testButton} onPress={testRideRequest}>
-          <Text style={styles.testButtonText}>Test Ride Request</Text>
         </TouchableOpacity>
       </View>
 
@@ -782,9 +720,6 @@ const styles = StyleSheet.create({
   offlineStatus: {
     backgroundColor: '#dc3545',
   },
-  mockModeActive: {
-    backgroundColor: '#17a2b8',
-  },
   statusText: {
     color: 'white',
     fontWeight: '600',
@@ -823,18 +758,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     zIndex: 2000,
-  },
-  testButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    backgroundColor: '#E88801',
-    alignItems: 'center',
-  },
-  testButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
   },
   modalContainer: {
     flex: 1,

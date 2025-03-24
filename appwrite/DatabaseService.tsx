@@ -146,20 +146,6 @@ class DatabaseService {
       await databases.deleteDocument(DATABASE_ID, DRIVER_LOCATION_COLLECTION_ID, documentId);
       console.log("Driver document deleted successfully:", documentId);
 
-      // Option 2: Update the document to set status to offline
-      /*
-      const updatedDoc = await databases.updateDocument(
-        DATABASE_ID,
-        DRIVER_LOCATION_COLLECTION_ID,
-        documentId,
-        {
-          status: "offline",
-          lastUpdated: new Date().toISOString(),
-        }
-      );
-      console.log("Driver status set to offline:", updatedDoc.$id);
-      */
-
       return { success: true };
     } catch (err) {
       console.error("Error setting driver offline:", err);
@@ -168,49 +154,6 @@ class DatabaseService {
       }
       return { success: false, error: err };
     }
-  }
-  
-  // Get all active drivers in a specific area using H3 hexagons
-  async getNearbyDrivers(latitude: number, longitude: number, radius: number = 1) {
-    try {
-      // Generate H3 index for the given location
-      const h3Index = latLngToCell(latitude, longitude, 9);
-      console.log("Looking for drivers near H3:", h3Index);
-      
-      // Get all cells within k "rings" (hexagonal rings) of the center cell
-      const kRing = gridDisk(h3Index, radius);
-      console.log(`Searching in ${kRing.length} H3 cells`);
-      
-      const result = await databases.listDocuments(
-        DATABASE_ID,
-        DRIVER_LOCATION_COLLECTION_ID,
-        [
-          Query.equal("status", "online"),
-          Query.in("h3Index", kRing)
-        ]
-      );
-      
-      console.log(`Found ${result.total} online drivers in the area`);
-      return result;
-    } catch (err) {
-      console.error("Error fetching nearby drivers:", err);
-      throw err;
-    }
-  }
-  
-  // Helper method to calculate distance between coordinates (Haversine formula)
-  calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
-    // Implementation of the Haversine formula
-    const R = 6371; // Radius of the Earth in km
-    const dLat = this.deg2rad(lat2 - lat1);
-    const dLng = this.deg2rad(lng2 - lng1);
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
-      Math.sin(dLng/2) * Math.sin(dLng/2); 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    const distance = R * c; // Distance in km
-    return distance;
   }
   
   deg2rad(deg: number) {
