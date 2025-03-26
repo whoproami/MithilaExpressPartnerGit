@@ -7,7 +7,7 @@ const DriverProfile = ({ navigation }) => {
             {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.headerText}>Driver Profile</Text>
-            </View>
+            </View> 
 
             {/* Scrollable Content */}
             <ScrollView style={styles.content}>

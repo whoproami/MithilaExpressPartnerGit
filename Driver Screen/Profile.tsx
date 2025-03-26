@@ -4,6 +4,7 @@ import {NativeStackScreenProps} from "@react-navigation/native-stack"
 import { AppStackParamList } from '../routes/AppStack';
 import Snackbar from 'react-native-snackbar';
 import { AppwriteContext } from '../appwrite/AuthContext';
+
 type Profileprops = NativeStackScreenProps<AppStackParamList,'Profile'>
 const ProfileScreen:React.FC<Profileprops> = ({navigation}:Profileprops) => {
   const {appwrite,setisLoggedIn} = useContext(AppwriteContext);
