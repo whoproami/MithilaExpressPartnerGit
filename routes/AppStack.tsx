@@ -13,6 +13,7 @@ import DriverLicense from "../components/DriverLicense";
 import DriverProfile from "../components/DriverProfile";
 import RideInProgress from "../Driver Screen/RideInProgress";
 import RideComplete from "../Driver Screen/RideComplete";
+import WalletScreen from "../Driver Screen/Wallet";
 
 
 export type AppStackParamList = {
@@ -27,7 +28,7 @@ export type AppStackParamList = {
     Notifications:undefined,
     RideInProgress:undefined,
     RideComplete:undefined,
-    
+    Wallet: undefined;
 }
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
@@ -46,7 +47,7 @@ export const AppStack = () => {
             <Stack.Screen name="DrivingLicense" component={DriverLicense} />
             <Stack.Screen name="RideInProgress" component={RideInProgress} />
             <Stack.Screen name="RideComplete" component={RideComplete} />
-
+            <Stack.Screen name="Wallet" component={WalletScreen} options={{ headerShown: false }} />
 
             
 

@@ -6,10 +6,11 @@ import {
   SafeAreaView,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome'; // FontAwesome 4
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AppStackParamList } from '../routes/AppStack'; 
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {AppStackParamList} from '../routes/AppStack';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 
 type FooterNavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
@@ -21,34 +22,40 @@ const Footer: React.FC = () => {
       <View style={styles.container}>
         <TouchableOpacity
           style={styles.footerItem}
-          onPress={() => navigation.navigate('Home')}
-        >
+          onPress={() => navigation.navigate('Home')}>
           <Icon name="home" size={32} color="#E88801" />
           <Text style={styles.footerText}>Home</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.footerItem}
-          onPress={() => navigation.navigate('History')}
-        >
+          onPress={() => navigation.navigate('History')}>
           <Icon name="history" size={32} color="#E88801" />
           <Text style={styles.footerText}>History</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.footerItem}
-          onPress={() => navigation.navigate('DriverProfile')}
-        >
+          onPress={() => navigation.navigate('DriverProfile')}>
           <Icon name="user-circle" size={32} color="#E88801" />
           <Text style={styles.footerText}>Profile</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.footerItem}
-          onPress={() => navigation.navigate('Profile')}
-        >
+          onPress={() => navigation.navigate('Profile')}>
           <Icon name="user" size={32} color="#E88801" />
           <Text style={styles.footerText}>Account</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.footerItem}
+          onPress={() => navigation.navigate('Wallet')}>
+          <MaterialIcons
+                          name="account-balance-wallet"
+                          size={32}
+                          color="#E88801"
+                        />
+          <Text style={[styles.footerText]}>Wallet</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
