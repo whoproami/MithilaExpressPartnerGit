@@ -28,13 +28,13 @@ type DriverLicenseInfo = {
   expiration_date?: number;
 };
 type DriverVehicleInfo = {
+  make: string;
   photo: string;
   model: string;
   year?: number;
   license_plate: string;
   vin?: number;
 };
-
 
 class DatabaseService {
   constructor() {
@@ -262,39 +262,41 @@ class DatabaseService {
         DATABASE_ID,
         DRIVER_LICENSE_COLLECTION_ID,
         ID.unique(),
-        data
+        data,
       );
 
       console.log('Driver license stored successfully:', document.$id);
-      return { success: true, documentId: document.$id };
+      return {success: true, documentId: document.$id};
     } catch (error) {
       console.error('Error storing driver license:', error);
-      return { success: false, error };
+      return {success: false, error};
     }
   }
-  
 
-  async storeVehicleInformation(data: DriverVehicleInfo) {
+  async getVehicleInformation(userId?: string) {
     try {
-      console.log('Storing vehicle information:', data);
+      console.log('Fetching vehicle information', { userId });
 
-      const document = await databases.createDocument(
+      // If userId is provided, filter by it; otherwise, fetch all vehicles
+      const queries = userId ? [Query.equal('userId', userId)] : [];
+
+      const response = await databases.listDocuments(
         DATABASE_ID,
         VEHICLE_COLLECTION_ID,
-        ID.unique(),
-        data
+        queries,
       );
 
-      console.log('Vehicle information stored successfully:', document.$id);
-      return { success: true, documentId: document.$id };
+      console.log(`Found ${response.total} vehicle documents`);
+      return {
+        success: true,
+        documents: response.documents,
+        total: response.total,
+      };
     } catch (error) {
-      console.error('Error storing vehicle information:', error);
+      console.error('Error fetching vehicle information:', error);
       return { success: false, error };
     }
   }
-
 }
-
-
 
 export default DatabaseService;
