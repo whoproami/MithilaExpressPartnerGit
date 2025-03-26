@@ -30,12 +30,13 @@ const VehicleInformation: React.FC = () => {
     license_plate: string;
     vin?: number;
     photo: string;
+    userId?: string; // Added to associate with a user
   }>(null);
   const [error, setError] = useState<string | null>(null);
 
   const databaseService = new DatabaseService();
 
-  // Dummy data to use when userId is not provided
+  // Dummy data to use when userId is not provided or no data exists
   const dummyVehicleData = {
     make: 'Toyota',
     model: 'Camry',
@@ -43,6 +44,7 @@ const VehicleInformation: React.FC = () => {
     license_plate: 'ABC 1234',
     vin: 12345678901234567,
     photo: 'https://example.com/vehicle-image.jpg',
+    userId: 'dummy-user-id', // Optional, for consistency
   };
 
   useEffect(() => {
@@ -52,11 +54,10 @@ const VehicleInformation: React.FC = () => {
   const fetchVehicleData = async () => {
     try {
       setIsLoading(true);
-      // Replace this with your actual logic to get userId (e.g., from auth context or navigation params)
-      const userId = undefined; // For now, simulating no userId; replace with actual userId if available
+      // Replace with actual logic to get userId (e.g., from auth context or navigation params)
+      const userId = undefined; // Simulating no userId; replace with actual userId
 
       if (userId) {
-        // Fetch real data if userId is provided
         const response = await databaseService.getVehicleInformation(userId);
 
         if (!response.success) {
@@ -72,12 +73,13 @@ const VehicleInformation: React.FC = () => {
             license_plate: vehicle.license_plate,
             vin: vehicle.vin,
             photo: vehicle.photo,
+            userId: vehicle.userId || userId,
           });
         } else {
-          setError('No vehicle information found for this user');
+          console.log('No vehicle found, using dummy data');
+          setVehicleData({ ...dummyVehicleData, userId });
         }
       } else {
-        // Use dummy data if no userId is provided
         console.log('No userId provided, using dummy data');
         setVehicleData(dummyVehicleData);
       }
@@ -89,10 +91,34 @@ const VehicleInformation: React.FC = () => {
     }
   };
 
-  const handleEditVehicle = () => {
-    console.log('Edit vehicle pressed');
-    if (vehicleData) {
-      navigation.navigate('EditVehicle', { vehicleData });
+  const saveVehicle = async () => {
+    if (!vehicleData) return;
+
+    try {
+      setIsLoading(true);
+      const dataToSave = {
+        make: vehicleData.make,
+        model: vehicleData.model,
+        year: vehicleData.year,
+        license_plate: vehicleData.license_plate,
+        vin: vehicleData.vin,
+        photo: vehicleData.photo,
+        userId: vehicleData.userId || 'default-user-id', // Replace with actual userId
+      };
+
+      const response = await databaseService.storeVehicleInformation(dataToSave);
+      if (response.success) {
+        console.log('Vehicle saved successfully:', response.documentId);
+        // Optionally refresh data after saving
+        await fetchVehicleData();
+      } else {
+        throw new Error(response.error || 'Failed to save vehicle');
+      }
+    } catch (err) {
+      console.error('Error saving vehicle:', err);
+      setError('Failed to save vehicle information');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -165,11 +191,11 @@ const VehicleInformation: React.FC = () => {
             </View>
           </ScrollView>
 
-          {/* Floating Edit Button */}
+          {/* Floating Save Button */}
           <TouchableOpacity
-            style={styles.floatingEditButton}
-            onPress={handleEditVehicle}>
-            <Ionicons name="pencil" size={24} color="white" />
+            style={styles.floatingSaveButton}
+            onPress={saveVehicle}>
+            <Ionicons name="save" size={24} color="white" />
           </TouchableOpacity>
         </View>
       )}
@@ -177,7 +203,7 @@ const VehicleInformation: React.FC = () => {
   );
 };
 
-// Styles remain unchanged
+// Updated styles with save button
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -240,7 +266,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   scrollContent: {
-    paddingBottom: 80,
+    paddingBottom: 80, // Space for floating button
   },
   imageContainer: {
     alignItems: 'center',
@@ -293,7 +319,7 @@ const styles = StyleSheet.create({
     color: '#1F2A44',
     lineHeight: 24,
   },
-  floatingEditButton: {
+  floatingSaveButton: {
     position: 'absolute',
     right: 20,
     bottom: 20,

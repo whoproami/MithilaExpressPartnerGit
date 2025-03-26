@@ -254,22 +254,22 @@ class DatabaseService {
     return deg * (Math.PI / 180);
   }
 
-  async storeDriverLicense(data: DriverLicenseInfo) {
+  async storeVehicleInformation(data: DriverVehicleInfo) {
     try {
-      console.log('Storing driver license:', data);
+      console.log('Storing vehicle information:', data);
 
       const document = await databases.createDocument(
         DATABASE_ID,
-        DRIVER_LICENSE_COLLECTION_ID,
+        VEHICLE_COLLECTION_ID,
         ID.unique(),
         data,
       );
 
-      console.log('Driver license stored successfully:', document.$id);
-      return {success: true, documentId: document.$id};
+      console.log('Vehicle information stored successfully:', document.$id);
+      return { success: true, documentId: document.$id };
     } catch (error) {
-      console.error('Error storing driver license:', error);
-      return {success: false, error};
+      console.error('Error storing vehicle information:', error);
+      return { success: false, error };
     }
   }
 
@@ -277,7 +277,6 @@ class DatabaseService {
     try {
       console.log('Fetching vehicle information', { userId });
 
-      // If userId is provided, filter by it; otherwise, fetch all vehicles
       const queries = userId ? [Query.equal('userId', userId)] : [];
 
       const response = await databases.listDocuments(
@@ -297,6 +296,51 @@ class DatabaseService {
       return { success: false, error };
     }
   }
+
+  async storeDriverLicense(data: DriverLicenseInfo) {
+    try {
+      console.log('Storing driver license:', data);
+
+      const document = await databases.createDocument(
+        DATABASE_ID,
+        DRIVER_LICENSE_COLLECTION_ID,
+        ID.unique(),
+        data,
+      );
+
+      console.log('Driver license stored successfully:', document.$id);
+      return { success: true, documentId: document.$id };
+    } catch (error) {
+      console.error('Error storing driver license:', error);
+      return { success: false, error };
+    }
+  }
+
+  async getDriverLicenseInformation(userId?: string) {
+    try {
+      console.log('Fetching driver license information', { userId });
+
+      const queries = userId ? [Query.equal('userId', userId)] : [];
+
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        DRIVER_LICENSE_COLLECTION_ID,
+        queries,
+      );
+
+      console.log(`Found ${response.total} driver license documents`);
+      return {
+        success: true,
+        documents: response.documents,
+        total: response.total,
+      };
+    } catch (error) {
+      console.error('Error fetching driver license information:', error);
+      return { success: false, error };
+    }
+  }
+
+  
 }
 
 export default DatabaseService;
