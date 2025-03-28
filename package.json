@@ -11,13 +11,21 @@
   },
   "dependencies": {
     "@ant-design/icons-react-native": "^2.3.2",
+    "@react-native-community/datetimepicker": "^8.3.0",
     "@react-native-community/geolocation": "^3.4.0",
     "@react-navigation/native": "^7.0.15",
     "@react-navigation/native-stack": "^7.2.1",
+    "@react-navigation/stack": "^7.2.3",
     "appwrite": "^17.0.0",
     "h3-js": "^4.1.0",
     "react": "19.0.0",
     "react-native": "0.78.0",
+    "react-native-blob-util": "^0.21.2",
+    "react-native-file-access": "^3.1.1",
+    "react-native-fs": "^2.20.0",
+    "react-native-gesture-handler": "^2.24.0",
+    "react-native-image-picker": "^8.2.0",
+    "react-native-image-resizer": "^1.4.5",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-maps": "^1.20.1",
     "react-native-safe-area-context": "^5.3.0",
@@ -27,7 +35,8 @@
     "react-native-swiper": "^1.6.0",
     "react-native-vector-icons": "^10.2.0",
     "react-native-vision-camera": "^4.6.4",
-    "react-native-webview": "^13.13.4"
+    "react-native-webview": "^13.13.4",
+    "rn-fetch-blob": "^0.12.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

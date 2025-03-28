@@ -19,6 +19,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import {Query} from 'appwrite';
+import Footer from '../components/Footer';
 
 type ProfileScreenProps = NativeStackScreenProps<AppStackParamList, 'Profile'>;
 const {width} = Dimensions.get('window');
@@ -164,6 +165,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
   };
 
   const profileOptions = [
+    {
+      id: 'docs-verification',
+      title: 'Documents & Verification',
+      icon: 'description',
+      color: '#9C27B0',
+      onPress: () => navigation.navigate('DocumentsManagement'),  // Navigate to the Documents screen
+    },
     {
       id: 'edit-profile',
       title: 'Driver Details',
@@ -439,6 +447,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
 
         <Text style={styles.versionText}>Mithila Express Partner v1.0.0</Text>
       </ScrollView>
+      {/* <Footer/> */}
     </View>
   );
 };
@@ -449,7 +458,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F7FA',
   },
   headerGradient: {
-    paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight,
+    paddingTop: 25,
     paddingBottom: 30,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
