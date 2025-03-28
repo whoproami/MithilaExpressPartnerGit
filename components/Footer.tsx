@@ -34,12 +34,12 @@ const Footer: React.FC = () => {
           <Text style={styles.footerText}>History</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.footerItem}
           onPress={() => navigation.navigate('DriverProfile')}>
           <Icon name="user-circle" size={32} color="#E88801" />
           <Text style={styles.footerText}>Profile</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={styles.footerItem}
